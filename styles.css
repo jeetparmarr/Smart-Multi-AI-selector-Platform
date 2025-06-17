@@ -1,0 +1,629 @@
+/* Custom styles for Jeet's Ultimate Super AI */
+
+/* CORE STYLING */
+:root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --light-bg: #f9fafb;
+    --dark-bg: #111827;
+    --light-text: #374151;
+    --dark-text: #f3f4f6;
+    --border-color: #e5e7eb;
+    --message-user-bg: #e0e7ff;
+    --message-ai-bg: #f3f4f6;
+    --animation-duration: 0.3s;
+}
+
+.dark-mode {
+    --light-bg: #1f2937;
+    --dark-bg: #111827;
+    --light-text: #f3f4f6;
+    --dark-text: #f9fafb;
+    --border-color: #374151;
+    --message-user-bg: #3730a3;
+    --message-ai-bg: #374151;
+}
+
+body.dark-mode {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+.dark-mode .bg-white {
+    background-color: var(--dark-bg);
+}
+
+.dark-mode .text-gray-700,
+.dark-mode .text-gray-800,
+.dark-mode .text-gray-600 {
+    color: var(--dark-text);
+}
+
+.dark-mode .bg-gray-50,
+.dark-mode .bg-gray-100 {
+    background-color: #1a1a1a;
+}
+
+.dark-mode .border,
+.dark-mode .border-t {
+    border-color: #2d3748;
+}
+
+/* MESSAGE STYLING */
+.message {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    position: relative;
+    max-width: 85%;
+    word-break: break-word;
+}
+
+.message .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.dark-mode .message .copy-btn {
+    background-color: transparent;
+    color: #9ca3af;
+}
+
+.message:hover .copy-btn {
+    color: white;
+}
+
+.user-message {
+    background-color: #e0e7ff;
+    color: #312e81;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.dark-mode .user-message {
+    color: #e0e7ff;
+}
+
+.ai-message {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+.dark-mode .ai-message {
+    color: var(--dark-text);
+}
+
+/* Error message styling */
+.error-message {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    border-left: 4px solid #ef4444;
+}
+
+.dark-mode .error-message {
+    background-color: #7f1d1d !important;
+    color: #fecaca !important;
+    border-left: 4px solid #ef4444;
+}
+
+.error-message .message-model {
+    display: none;
+}
+
+.error-message::before {
+    content: "⚠️";
+    margin-right: 8px;
+}
+
+.message-time, .message-model {
+    font-size: 0.7rem;
+    color: #6b7280;
+    text-align: right;
+    margin-top: 4px;
+}
+
+.message-model {
+    font-style: italic;
+}
+
+.dark-mode .message-model {
+    color: #9ca3af;
+}
+
+/* Code blocks styling */
+.message pre {
+    background-color: #282c34;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    position: relative;
+}
+
+.message pre code {
+    font-family: 'Fira Code', monospace;
+    color: #abb2bf;
+    tab-size: 4;
+}
+
+.message p code {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.25rem;
+    font-family: 'Fira Code', monospace;
+}
+
+.dark-mode .message p code {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.message pre .code-copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 48px;
+    background-color: #374151;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.message pre:hover .code-copy-btn {
+    background-color: #4b5563;
+    color: white;
+}
+
+/* Copy button for AI messages */
+.copy-message-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(79, 70, 229, 0.1);
+    color: var(--primary-color);
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.ai-message:hover .copy-message-btn {
+    opacity: 1;
+}
+
+.copy-message-btn:hover {
+    background-color: rgba(79, 70, 229, 0.2);
+}
+
+.dark-mode .copy-message-btn {
+    background-color: rgba(156, 163, 175, 0.2);
+    color: #d1d5db;
+}
+
+.dark-mode .copy-message-btn:hover {
+    background-color: rgba(156, 163, 175, 0.3);
+}
+
+/* Animation for copy success */
+@keyframes copySuccess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.copy-success {
+    animation: copySuccess 0.3s ease;
+}
+
+/* LOADING ANIMATIONS */
+.loader {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(79, 70, 229, 0.2);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s infinite ease-in-out;
+}
+
+.loading-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+}
+
+.loading-dots::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    animation: typing 1s ease-in-out infinite alternate;
+    background-color: white;
+    box-shadow: -8px 0 0 0 rgba(255, 255, 255, 0.7),
+                 8px 0 0 0 rgba(255, 255, 255, 0.4);
+}
+
+.typing-indicator {
+    padding: 12px 16px;
+    background-color: #f3f4f6;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.typing-indicator span {
+    height: 8px;
+    width: 8px;
+    float: left;
+    margin: 0 1px;
+    background-color: #9ca3af;
+    display: block;
+    border-radius: 50%;
+    opacity: 0.4;
+}
+
+.typing-indicator span:nth-of-type(1) {
+    animation: typing 1s infinite;
+}
+
+.typing-indicator span:nth-of-type(2) {
+    animation: typing 1s 0.33s infinite;
+}
+
+.typing-indicator span:nth-of-type(3) {
+    animation: typing 1s 0.66s infinite;
+}
+
+@keyframes typing {
+    0% {
+        opacity: 0.4;
+        transform: translateY(0px);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+    100% {
+        opacity: 0.4;
+        transform: translateY(0px);
+    }
+}
+
+/* FILE UPLOAD STYLES */
+.border-dashed {
+    transition: all 0.3s ease;
+}
+
+.border-dashed:hover, 
+.border-dashed.dragover {
+    border-color: #4f46e5;
+    background-color: #eef2ff;
+}
+
+.dark-mode .border-dashed:hover,
+.dark-mode .border-dashed.dragover {
+    border-color: #6366f1;
+    background-color: #1e1b4b;
+}
+
+/* File Preview */
+.file-preview-item {
+    display: flex;
+    align-items: center;
+    background-color: #f3f4f6;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.file-icon {
+    margin-right: 8px;
+    color: #6b7280;
+}
+
+.file-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #374151;
+    margin-right: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-remove {
+    color: #ef4444;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.file-remove:hover {
+    color: #b91c1c;
+}
+
+/* RESPONSIVE DESIGN */
+@media screen and (max-width: 1024px) {
+    .message {
+        max-width: 90%;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .message {
+        max-width: 95%;
+    }
+    
+    #chat-messages {
+        height: 60vh !important;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .message {
+        max-width: 100%;
+    }
+    
+    #send-button span {
+        display: none;
+    }
+    
+    #send-button .fas {
+        margin-left: 0;
+    }
+}
+
+/* ANIMATIONS */
+@keyframes message-fade-in {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.dark-mode ::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c7d2fe;
+    border-radius: 4px;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+    background: #4f46e5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a5b4fc;
+}
+
+/* Transitions */
+.transition-transform {
+    transition: transform 0.3s ease;
+}
+
+.transform-rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* UTILITIES */
+.markdown-content ul, 
+.markdown-content ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.markdown-content ul li, .markdown-content ol li {
+    margin-bottom: 4px;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.markdown-content h1 { font-size: 1.5rem; }
+.markdown-content h2 { font-size: 1.3rem; }
+.markdown-content h3 { font-size: 1.2rem; }
+.markdown-content h4 { font-size: 1.1rem; }
+.markdown-content h5, .markdown-content h6 { font-size: 1rem; }
+
+.markdown-content p {
+    margin: 0.75rem 0;
+}
+
+/* Header Styles */
+.settings-link {
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-right: 15px;
+  transition: background-color 0.2s;
+}
+
+.settings-link:hover {
+  background-color: var(--bg-primary);
+}
+
+.settings-link i {
+  margin-right: 6px;
+  font-size: 0.9rem;
+}
+
+.dark-mode .settings-link {
+  color: var(--text-primary);
+}
+
+.dark-mode .settings-link:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* System message */
+.system-message {
+    background-color: #f3f4f6;
+    border-left: 4px solid #6b7280;
+    padding: 10px 15px;
+    color: #4b5563;
+    font-style: italic;
+    width: 100%;
+    margin: 10px 0;
+    font-size: 0.9rem;
+    max-width: 100%;
+}
+
+/* Bypass notification */
+.bypass-notice {
+    background-color: #fef3c7;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    font-size: 0.9rem;
+}
+
+/* Code block styling */
+.ai-message pre {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    position: relative;
+}
+
+.ai-message code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+}
+
+.ai-message p code {
+    background-color: #e5e7eb;
+    color: #1f2937;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.language-tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #374151;
+    color: #9ca3af;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    border-radius: 0 6px 0 6px;
+}
+
+/* Copy buttons */
+.copy-btn:hover {
+    color: white;
+}
+
+.code-copy-btn:hover {
+    background-color: #4b5563;
+    color: white;
+}
+
+/* Markdown content */
+.markdown-content table {
+    border-collapse: collapse;
+    margin: 12px 0;
+    width: 100%;
+}
+
+.markdown-content th, .markdown-content td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+}
+
+.markdown-content th {
+    background-color: #f9fafb;
+}
+
+.markdown-content a {
+    color: #4f46e5;
+    text-decoration: underline;
+} 
+
+/* Quick model selector */
+.model-quick-select {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 0 10px;
+}
+
+.model-quick-select label {
+  margin-right: 8px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.quick-model-select {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.quick-model-select:hover {
+  border-color: var(--primary-color);
+}
+
+.quick-model-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.dark-mode .quick-model-select {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: #444;
+}
+
+/* Existing CSS below */ 

@@ -1,0 +1,531 @@
+document.addEventListener('DOMContentLoaded', () => {
+  // DOM Elements
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+  const chatMessages = document.getElementById('chat-messages');
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const themeToggle = document.getElementById('theme-toggle');
+  const clearChatBtn = document.getElementById('clear-chat');
+  const aiModelSelect = document.getElementById('ai-model');
+  const quickModelSelect = document.getElementById('quick-model-select');
+  const examplePrompts = document.querySelectorAll('.example-prompt');
+
+  // State
+  let darkMode = localStorage.getItem('darkMode') === 'true';
+  let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+  
+  // Get selected model from localStorage or default to 'google/gemini-pro'
+  let currentModel = localStorage.getItem('selectedModel') || 'google/gemini-pro';
+
+  // Initialize
+  initializeApp();
+
+  // Functions
+  function initializeApp() {
+    // Set theme based on preference
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+      themeToggle.checked = true;
+    }
+
+    // Set both model selectors to match the current model
+    if (aiModelSelect.querySelector(`option[value="${currentModel}"]`)) {
+      aiModelSelect.value = currentModel;
+    }
+    
+    if (quickModelSelect.querySelector(`option[value="${currentModel}"]`)) {
+      quickModelSelect.value = currentModel;
+    }
+
+    // Load chat history
+    loadChatHistory();
+
+    // Add copy buttons to existing AI messages
+    initializeCopyButtons();
+
+    // Set up event listeners
+    setupEventListeners();
+  }
+
+  function setupEventListeners() {
+    // Chat form submission
+    chatForm.addEventListener('submit', handleChatSubmit);
+
+    // Theme toggle
+    themeToggle.addEventListener('change', toggleTheme);
+
+    // Clear chat
+    clearChatBtn.addEventListener('click', clearChat);
+
+    // Main Model selection
+    aiModelSelect.addEventListener('change', () => {
+      changeModel(aiModelSelect.value);
+    });
+    
+    // Quick Model selection
+    quickModelSelect.addEventListener('change', () => {
+      changeModel(quickModelSelect.value);
+    });
+
+    // Example prompts
+    examplePrompts.forEach(prompt => {
+      prompt.addEventListener('click', () => {
+        chatInput.value = prompt.textContent;
+        chatInput.focus();
+      });
+    });
+  }
+  
+  // Function to change model and keep selectors in sync
+  function changeModel(model) {
+    currentModel = model;
+    localStorage.setItem('selectedModel', model);
+    aiModelSelect.value = model;
+    quickModelSelect.value = model;
+    
+    // Add a system message to chat indicating model change
+    const modelMessage = {
+      role: 'system',
+      content: `Model changed to ${getModelName(model)}`
+    };
+    chatHistory.push(modelMessage);
+    saveChatHistory();
+    displayMessages();
+  }
+
+  function handleChatSubmit(event) {
+    event.preventDefault();
+    
+    // Get the user's message
+    const userMessage = chatInput.value.trim();
+    if (!userMessage) return;
+    
+    // Add the user's message to the chat
+    addMessageToChat('user', userMessage);
+    
+    // Clear the input
+    chatInput.value = '';
+    
+    // Show typing indicator
+    showLoadingIndicator();
+    
+    // Send to server
+    sendMessageToServer(userMessage)
+      .then(response => {
+        hideLoadingIndicator();
+        if (response.error) {
+          addMessageToChat('ai', response.content, true);
+        } else {
+          addMessageToChat('ai', response.content);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        hideLoadingIndicator();
+        addMessageToChat('ai', `An error occurred: ${error.message}`, true);
+      });
+  }
+
+  function addMessageToChat(sender, content, isError = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message');
+    
+    // Add user or AI message class
+    messageDiv.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
+    
+    // Add animation class
+    messageDiv.classList.add('message-enter');
+    
+    // Add error class if it's an error message
+    if (isError) {
+        messageDiv.classList.add('error-message');
+    }
+    
+    // Process content to detect and format code blocks
+    content = formatMessageContent(content);
+    
+    // For AI messages, add model indicator for non-default models
+    let messageHTML = content;
+    if (sender === 'ai') {
+        if (currentModel !== 'google/gemini-pro' && !isError) {
+            const modelName = getModelName(currentModel).split(' ')[0]; // Get just the model name part
+            messageHTML = `<div class="message-content">${content}</div>
+                          <div class="message-model">Generated by ${modelName}</div>`;
+        } else {
+            messageHTML = `<div class="message-content">${content}</div>`;
+        }
+    }
+    
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = messageHTML;
+    
+    while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+    }
+    
+    messageDiv.appendChild(fragment);
+    
+    // Add copy button to AI messages
+    if (sender === 'ai' && !isError) {
+        const copyButton = document.createElement('button');
+        copyButton.classList.add('copy-btn');
+        copyButton.textContent = 'Copy';
+        copyButton.setAttribute('aria-label', 'Copy message');
+        copyButton.addEventListener('click', () => copyMessageContent(messageDiv));
+        messageDiv.appendChild(copyButton);
+    }
+    
+    // Use requestAnimationFrame for smooth scrolling
+    requestAnimationFrame(() => {
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+    
+    // Add to history
+    chatHistory.push({ sender, content, isError });
+    saveChatHistory();
+    
+    // Add copy buttons to code blocks
+    addCopyButtonsToCodeBlocks();
+  }
+
+  function formatMessageContent(content) {
+    if (!content) return '';
+    
+    // Cache regex patterns
+    const codeBlockRegex = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const newlineRegex = /\n/g;
+    
+    // Handle code blocks - Replace markdown-style code blocks with HTML
+    let formattedContent = content.replace(codeBlockRegex, (match, language, code) => {
+        const escapedCode = escapeHtml(code);
+        return `
+            <div class="code-block">
+                <div class="language-tag">${language || 'code'}</div>
+                <pre><code class="${language ? `language-${language}` : ''}">${escapedCode}</code></pre>
+                <button class="copy-button" aria-label="Copy code">Copy</button>
+            </div>
+        `;
+    });
+    
+    // Handle line breaks
+    formattedContent = formattedContent.replace(newlineRegex, '<br>');
+    
+    // Detect URLs and make them clickable
+    formattedContent = formattedContent.replace(urlRegex, url => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    });
+    
+    // Handle markdown lists
+    formattedContent = formattedContent.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+    formattedContent = formattedContent.replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>');
+    
+    // Handle markdown bold and italic
+    formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    return formattedContent;
+  }
+
+  function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+  }
+
+  // Function to copy message content
+  function copyMessageContent(messageElement) {
+    // Get the copy button
+    const copyButton = messageElement.querySelector('.copy-message-btn');
+    
+    // Get the message content without the copy button and model indicator
+    const clonedMessage = messageElement.cloneNode(true);
+    
+    // Remove the copy button
+    const buttonToRemove = clonedMessage.querySelector('.copy-message-btn');
+    if (buttonToRemove) {
+      buttonToRemove.remove();
+    }
+    
+    // Remove the model indicator if it exists
+    const modelIndicator = clonedMessage.querySelector('.message-model');
+    if (modelIndicator) {
+      modelIndicator.remove();
+    }
+    
+    // Get content container if it exists
+    const contentContainer = clonedMessage.querySelector('.message-content');
+    
+    // Get plain text content
+    const textContent = contentContainer ? contentContainer.textContent.trim() : clonedMessage.textContent.trim();
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(textContent)
+      .then(() => {
+        // Visual feedback
+        copyButton.textContent = 'Copied!';
+        copyButton.classList.add('copy-success');
+        
+        // Reset after a delay
+        setTimeout(() => {
+          copyButton.textContent = 'Copy';
+          copyButton.classList.remove('copy-success');
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+        copyButton.textContent = 'Failed!';
+        
+        // Reset after a delay
+        setTimeout(() => {
+          copyButton.textContent = 'Copy';
+        }, 2000);
+      });
+  }
+
+  function addCopyButtonsToCodeBlocks() {
+    document.querySelectorAll('.copy-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const codeElement = button.parentElement.querySelector('code');
+        const code = codeElement.textContent;
+        
+        navigator.clipboard.writeText(code).then(() => {
+          // Change button text temporarily
+          const originalText = button.textContent;
+          button.textContent = 'Copied!';
+          setTimeout(() => {
+            button.textContent = originalText;
+          }, 2000);
+        });
+      });
+    });
+  }
+
+  function showLoadingIndicator() {
+    loadingOverlay.classList.remove('hidden');
+  }
+
+  function hideLoadingIndicator() {
+    loadingOverlay.classList.add('hidden');
+  }
+
+  function toggleTheme() {
+    darkMode = themeToggle.checked;
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    localStorage.setItem('darkMode', darkMode);
+  }
+
+  function loadChatHistory() {
+    if (chatHistory.length > 0) {
+      // Clear the initial welcome message
+      while (chatMessages.firstChild) {
+        chatMessages.removeChild(chatMessages.firstChild);
+      }
+      
+      // Add saved messages
+      chatHistory.forEach(item => {
+        addMessageToChat(item.sender, item.content, item.isError);
+      });
+    }
+  }
+
+  function saveChatHistory() {
+    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+  }
+
+  function clearChat() {
+    if (confirm('Are you sure you want to clear the chat history?')) {
+      // Clear the chat window
+      while (chatMessages.children.length > 0) {
+        chatMessages.removeChild(chatMessages.lastChild);
+      }
+      
+      // Add new welcome message
+      addMessageToChat('ai', `Hello! I'm Jeet's Ultimate Super AI. How can I help you today?`);
+      
+      // Clear history
+      chatHistory = [];
+      saveChatHistory();
+    }
+  }
+
+  async function sendMessageToServer(message) {
+    try {
+        // If the server is unavailable, use simulation instead
+        if (serverUnavailable) {
+            return simulateResponse(message);
+        }
+
+        // Optimize request with AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest' // Add security header
+            },
+            body: JSON.stringify({
+                message,
+                model: currentModel,
+                timestamp: Date.now() // Add timestamp for tracking
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        // Check if the response is OK
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            
+            if (response.status === 404 && errorData.error?.includes('data policy')) {
+                return {
+                    error: true,
+                    content: 'This request violates our data policy. Please ensure your request does not contain sensitive or prohibited content.'
+                };
+            } else if (response.status === 429) {
+                return {
+                    error: true,
+                    content: 'Rate limit exceeded. Please wait a moment before trying again.'
+                };
+            } else if (response.status === 503) {
+                return {
+                    error: true,
+                    content: 'Service temporarily unavailable. Please try again in a few moments.'
+                };
+            } else {
+                return {
+                    error: true,
+                    content: `Server error: ${response.status} ${response.statusText}`
+                };
+            }
+        }
+
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid response format from server');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error sending message to server:', error);
+        
+        // Handle specific error cases
+        if (error.name === 'AbortError') {
+            return {
+                error: true,
+                content: 'Request timed out. Please try again.'
+            };
+        } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            serverUnavailable = true;
+            const simulatedResponse = await simulateResponse(message);
+            simulatedResponse.content = `⚠️ Server connection failed. Using offline simulation.\n\n${simulatedResponse.content}`;
+            return simulatedResponse;
+        }
+        
+        return {
+            error: true,
+            content: `Failed to send message: ${error.message}`
+        };
+    }
+  }
+  
+  // Fallback simulation function for when the server is not available
+  function simulateResponse(message) {
+    return new Promise((resolve) => {
+        // Use setTimeout with a shorter delay for better responsiveness
+        setTimeout(() => {
+            let response = '';
+            let modelPrefix = '';
+            
+            // Cache model name to avoid repeated lookups
+            const modelName = getModelName(currentModel);
+            
+            // Add model-specific prefix for non-default models
+            if (currentModel !== 'google/gemini-pro') {
+                modelPrefix = `As ${modelName}, `;
+            }
+            
+            // Use a more sophisticated response generation
+            const messageLower = message.toLowerCase();
+            
+            if (messageLower.includes('hello') || messageLower.includes('hi')) {
+                response = modelPrefix + "Hello! I'm Jeet's Ultimate Super AI. How can I assist you today?";
+            } else if (messageLower.includes('help')) {
+                response = modelPrefix + "I can help with a wide range of tasks! You can ask me questions, request code explanations, seek advice, or just chat about various topics. What specific help do you need?";
+            } else if (messageLower.includes('feature') || messageLower.includes('capabilities')) {
+                response = modelPrefix + "I have several capabilities including:\n\n• Answering questions on various topics\n• Explaining complex concepts\n• Writing and debugging code\n• Generating creative content\n• Helping with data analysis\n• Providing recommendations\n\nWhat would you like to explore today?";
+            } else if (messageLower.includes('code') || messageLower.includes('programming')) {
+                response = modelPrefix + "Here's a simple JavaScript function example:\n\n```javascript\nfunction calculateArea(radius) {\n    return Math.PI * radius * radius;\n}\n\nconst area = calculateArea(5);\nconsole.log(`The area is ${area.toFixed(2)} square units`);\n```\n\nWould you like me to explain how this works?";
+            } else if (messageLower.includes('error') || messageLower.includes('data policy')) {
+                response = modelPrefix + "I'm currently running in offline mode due to connectivity issues with some AI providers. This is a simulated response. In offline mode, I can still help with basic information, but my capabilities are more limited. For full functionality, please check your internet connection and ensure Direct Mode is enabled.";
+            } else {
+                // Generate a more contextual response
+                const keywords = ['explain', 'how', 'what', 'why', 'when', 'where', 'who'];
+                const hasQuestion = keywords.some(keyword => messageLower.includes(keyword));
+                
+                if (hasQuestion) {
+                    response = modelPrefix + "I'll help you with that! Could you please provide more specific details about what you'd like to know?";
+                } else {
+                    response = modelPrefix + "Thanks for your message! I'm analyzing your request and will provide a helpful response shortly.";
+                }
+            }
+            
+            // Special handling for DeepSick API model
+            if (currentModel === 'deepsick/model') {
+                response = modelPrefix + "I've analyzed your message with specialized focus. The DeepSick AI model is designed to provide in-depth analysis with particular expertise in specialized domains. How can I assist you further with this query?";
+            }
+            
+            resolve({ 
+                message: response,
+                model: currentModel,
+                timestamp: new Date().toISOString()
+            });
+        }, 500); // Reduced delay for better responsiveness
+    });
+  }
+
+  // Function to get a readable name for the model
+  function getModelName(modelId) {
+    const modelNames = {
+      'google/gemini-pro': 'Gemini Pro',
+      'anthropic/claude-3-haiku': 'Claude 3 Haiku',
+      'anthropic/claude-3-sonnet': 'Claude 3 Sonnet',
+      'anthropic/claude-3-opus': 'Claude 3 Opus',
+      'openai/gpt-4o': 'GPT-4o',
+      'openai/gpt-4': 'GPT-4',
+      'openai/gpt-3.5-turbo': 'GPT-3.5 Turbo'
+    };
+    
+    return modelNames[modelId] || modelId;
+  }
+
+  // Add this new function to initialize copy buttons on existing AI messages
+  function initializeCopyButtons() {
+    document.querySelectorAll('.ai-message').forEach(message => {
+      // Skip if already has a copy button
+      if (message.querySelector('.copy-message-btn')) return;
+      
+      const copyButton = document.createElement('button');
+      copyButton.classList.add('copy-message-btn');
+      copyButton.textContent = 'Copy';
+      copyButton.setAttribute('aria-label', 'Copy message');
+      copyButton.addEventListener('click', () => copyMessageContent(message));
+      message.appendChild(copyButton);
+    });
+  }
+}); 
